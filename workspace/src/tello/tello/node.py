@@ -93,7 +93,6 @@ class TelloNode():
         self.pub_battery = self.node.create_publisher(BatteryState, 'battery', 1)
         self.pub_temperature = self.node.create_publisher(Temperature, 'temperature', 1)
         self.pub_odom = self.node.create_publisher(Odometry, 'odom', 1)
-
         # TF broadcaster
         if self.tf_pub:
             self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
@@ -164,6 +163,8 @@ class TelloNode():
                     odom_msg.twist.twist.linear.y = float(self.tello.get_speed_y()) / 100.0
                     odom_msg.twist.twist.linear.z = float(self.tello.get_speed_z()) / 100.0
                     self.pub_odom.publish(odom_msg)
+                
+                
 
                 time.sleep(rate)
 
@@ -244,6 +245,8 @@ class TelloNode():
                     msg.P = self.camera_info.projection_matrix
                     self.pub_camera_info.publish(msg)
 
+
+
                 # Sleep
                 time.sleep(rate)
 
@@ -297,6 +300,21 @@ class TelloNode():
         else:
             self.tello.rotate_clockwise(magnitude)
 
+    def prec_rotate(self, degrees):
+        if degrees < 0:
+            self.tello.send_rc_control(0,0,0,-30)
+        else:
+            self.tello.send_rc_control(0,0,0,30)
+        initial_angle = self.tello.get_yaw()
+        while True:
+            current_angle = self.tello.get_yaw()
+            print(self.tello.get_yaw())
+            if abs(current_angle - initial_angle) > degrees:
+                self.tello.send_rc_control(0,0,0,0)
+                print("EXIT" + str(current_angle))
+                print(self.tello.get_distance_tof())
+                return
+
     # Stop all movement in the drone
     def cb_emergency(self, msg):
         self.tello.emergency()
@@ -330,10 +348,14 @@ class TelloNode():
         self.tello.flip(msg.data)
 
     def cb_prec_move(self, msg: Pose):
+        self.tello.takeoff()
+        time.sleep(5)
+        self.prec_rotate(90)
+        print("Done")
+        time.sleep(3)
+        self.tello.land()
+        
 
-        while True:
-            print(self.tello.get_yaw())
-            time.sleep(0.05)
 
         """
         rotation = 0
