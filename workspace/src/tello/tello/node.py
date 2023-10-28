@@ -18,7 +18,7 @@ from rclpy.node import Node
 from tello_msg.msg import TelloStatus, TelloID, TelloWifiConfig
 from std_msgs.msg import Empty, UInt8, UInt8, Bool, String
 from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
-from geometry_msgs.msg import Twist, TransformStamped
+from geometry_msgs.msg import Twist, TransformStamped, Pose
 from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge
 import ament_index_python
@@ -106,6 +106,8 @@ class TelloNode():
         self.sub_control = self.node.create_subscription(Twist, 'control', self.cb_control, 1)
         self.sub_flip = self.node.create_subscription(String, 'flip', self.cb_flip, 1)
         self.sub_wifi_config = self.node.create_subscription(TelloWifiConfig, 'wifi_config', self.cb_wifi_config, 1)
+
+        self.sub_prec_move = self.node.create_subscription(Pose, 'prec_move', self.cb_prec_move, 1)
 
     # Get the orientation of the drone as a quaternion
     def get_orientation_quaternion(self):
@@ -284,6 +286,17 @@ class TelloNode():
         self.tello.end()
         rclpy.shutdown()
 
+    def rotate(self, magnitude: float, degrees: bool):
+        if not degrees:
+            magnitude = math.degrees(magnitude)
+
+        # self.node.get_logger(str(magnitude))
+        magnitude = int(magnitude)
+        if magnitude < 0:
+            self.tello.rotate_counter_clockwise(magnitude)
+        else:
+            self.tello.rotate_clockwise(magnitude)
+
     # Stop all movement in the drone
     def cb_emergency(self, msg):
         self.tello.emergency()
@@ -316,7 +329,22 @@ class TelloNode():
     def cb_flip(self, msg):
         self.tello.flip(msg.data)
 
+    def cb_prec_move(self, msg: Pose):
+        rotation = 0
+        if msg.position.y != 0:
+            rotation = math.atan((-msg.position.x) / msg.position.y)
+        self.rotate(rotation, False)
+        dist = int(math.sqrt(msg.position.x ** 2 + msg.position.y ** 2) * 100)
+        self.node.get_logger().info("Rotated")
+        while (dist > 0):
+            self.tello.move_forward(min(dist, 500))
+            self.node.get_logger().info(f"Sent move: {dist}")
+            dist = dist - 500
+        yaw, pitch, roll = quaternion_to_euler([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
+        self.rotate(yaw - rotation, False)
+
 # Convert a rotation from euler to quaternion.
+
 def euler_to_quaternion(r):
     (yaw, pitch, roll) = (r[0], r[1], r[2])
     qx = math.sin(roll/2) * math.cos(pitch/2) * math.cos(yaw/2) - math.cos(roll/2) * math.sin(pitch/2) * math.sin(yaw/2)
