@@ -49,7 +49,7 @@ class TelloNode():
 
         # Camera information loaded from calibration yaml
         self.camera_info = None
-        
+
         # Check if camera info file was received as argument
         if len(self.camera_info_file) == 0:
             share_directory = ament_index_python.get_package_share_directory('tello')
@@ -97,7 +97,7 @@ class TelloNode():
         # TF broadcaster
         if self.tf_pub:
             self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
-    
+
     # Setup the topic subscribers of the node.
     def setup_subscribers(self):
         self.sub_emergency = self.node.create_subscription(Empty, 'emergency', self.cb_emergency, 1)
@@ -132,7 +132,7 @@ class TelloNode():
                     t.transform.translation.y = 0.0
                     t.transform.translation.z = (self.tello.get_barometer()) / 100.0
                     self.tf_broadcaster.sendTransform(t)
-                
+
                 # IMU
                 if self.pub_imu.get_subscription_count() > 0:
                     q = self.get_orientation_quaternion()
@@ -164,7 +164,7 @@ class TelloNode():
                     odom_msg.twist.twist.linear.y = float(self.tello.get_speed_y()) / 100.0
                     odom_msg.twist.twist.linear.z = float(self.tello.get_speed_z()) / 100.0
                     self.pub_odom.publish(odom_msg)
-                
+
                 time.sleep(rate)
 
         thread = threading.Thread(target=status_odom)
@@ -243,7 +243,7 @@ class TelloNode():
                     msg.R = self.camera_info.rectification_matrix
                     msg.P = self.camera_info.projection_matrix
                     self.pub_camera_info.publish(msg)
-                
+
                 # Sleep
                 time.sleep(rate)
 
@@ -273,7 +273,7 @@ class TelloNode():
                 self.pub_image_raw.publish(msg)
 
                 time.sleep(rate)
-                
+
 
         # We need to run the recorder in a seperate thread, otherwise blocking options would prevent frames from getting added to the video
         thread = threading.Thread(target=video_capture_thread)
@@ -322,14 +322,19 @@ class TelloNode():
     # The drone will be restarted after the credentials are changed.
     def cb_wifi_config(self, msg):
         self.tello.set_wifi_credentials(msg.ssid, msg.password)
-    
+
     # Perform a drone flip in a direction specified.
-    # 
+    #
     # Directions can be "r" for right, "l" for left, "f" for forward or "b" for backward.
     def cb_flip(self, msg):
         self.tello.flip(msg.data)
 
     def cb_prec_move(self, msg: Pose):
+
+        while True:
+            print(self.tello.get_yaw())
+
+        """
         rotation = 0
         if msg.position.y != 0:
             rotation = math.atan((-msg.position.x) / msg.position.y)
@@ -342,6 +347,7 @@ class TelloNode():
             dist = dist - 500
         yaw, pitch, roll = quaternion_to_euler([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
         self.rotate(yaw - rotation, False)
+        """
 
 # Convert a rotation from euler to quaternion.
 
