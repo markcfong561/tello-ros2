@@ -273,7 +273,7 @@ class TelloNode():
                 # Publish opencv frame using CV bridge
                 msg = self.bridge.cv2_to_imgmsg(numpy.array(frame), 'bgr8')
                 msg.header.frame_id = self.tf_drone
-                msg.header.stamp = self.node.get_clock().now()
+                msg.header.stamp = self.node.get_clock().now().to_msg()
                 self.pub_image_raw.publish(msg)
 
                 time.sleep(rate)

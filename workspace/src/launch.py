@@ -18,7 +18,7 @@ def generate_launch_description():
                 {'tf_drone': 'drone'}
             ],
             remappings=[
-                ('/image_raw', '/camera')
+                ('/image_raw', '/camera/image_raw')
             ],
             respawn=True
         ),
