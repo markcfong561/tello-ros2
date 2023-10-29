@@ -163,8 +163,8 @@ class TelloNode():
                     odom_msg.twist.twist.linear.y = float(self.tello.get_speed_y()) / 100.0
                     odom_msg.twist.twist.linear.z = float(self.tello.get_speed_z()) / 100.0
                     self.pub_odom.publish(odom_msg)
-                
-                
+
+
 
                 time.sleep(rate)
 
@@ -347,14 +347,35 @@ class TelloNode():
     def cb_flip(self, msg):
         self.tello.flip(msg.data)
 
+
+    def test_find_pos(self):
+        last_time = time.time_ns()
+        distance_x = 0
+        distance_y = 0
+        for i in range(10000):
+            distance_x += ((time.time_ns() - last_time) / 100000) * self.tello.get_speed_x()
+            distance_y += ((time.time_ns() - last_time) / 100000) * self.tello.get_speed_y()
+
+            last_time = time.time_ns()
+
+            print("X: " + str(distance_x) + " | Y: " + str(distance_y))
+        return
+
+
     def cb_prec_move(self, msg: Pose):
+
+        self.test_find_pos()
+        print("end pos finding")
+
+        """
         self.tello.takeoff()
         time.sleep(5)
         self.prec_rotate(90)
         print("Done")
         time.sleep(3)
         self.tello.land()
-        
+        """
+
 
 
         """
