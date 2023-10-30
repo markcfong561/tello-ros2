@@ -83,6 +83,8 @@ class TelloNode():
 
         self.node.get_logger().info('Tello: Driver node ready')
 
+        self.pose = [0.0, 0.0, 0.0]
+
     # Setup ROS publishers of the node.
     def setup_publishers(self):
         self.pub_image_raw = self.node.create_publisher(Image, 'image_raw', 1)
@@ -105,7 +107,7 @@ class TelloNode():
         self.sub_control = self.node.create_subscription(Twist, 'control', self.cb_control, 1)
         self.sub_flip = self.node.create_subscription(String, 'flip', self.cb_flip, 1)
         self.sub_wifi_config = self.node.create_subscription(TelloWifiConfig, 'wifi_config', self.cb_wifi_config, 1)
-
+        self.node.create_subscription(Odometry, "/run_slam/camera_pose", self.cb_odom, 1)
         self.sub_prec_move = self.node.create_subscription(Pose, 'prec_move', self.cb_prec_move, 1)
 
     # Get the orientation of the drone as a quaternion
@@ -365,8 +367,8 @@ class TelloNode():
 
     def cb_prec_move(self, msg: Pose):
 
-        self.test_find_pos()
-        print("end pos finding")
+        # self.test_find_pos()
+        # print("end pos finding")
 
         """
         self.tello.takeoff()
@@ -375,24 +377,44 @@ class TelloNode():
         print("Done")
         time.sleep(3)
         self.tello.land()
-        """
+        """     
+        
+        while True:
+            max_diff = max(msg.position.x - self.pose[0], msg.position.y - self.pose[1])
+            x_speed = (msg.position.x - self.pose[0]) / max_diff * 30
+            y_speed = -(msg.position.y - self.pose[1]) / max_diff * 30
+            self.tello.send_rc_control(int(y_speed), int(x_speed), 0, 0)
+            print(int(y_speed), int(x_speed))
+            if abs(msg.position.x - self.pose[0]) < 0.1 and abs(msg.position.y - self.pose[1]) < 0.1:
+                self.tello.send_rc_control(0,0,0,0)
+                return
 
 
 
-        """
-        rotation = 0
-        if msg.position.y != 0:
-            rotation = math.atan((-msg.position.x) / msg.position.y)
-        self.rotate(rotation, False)
-        dist = int(math.sqrt(msg.position.x ** 2 + msg.position.y ** 2) * 100)
-        self.node.get_logger().info("Rotated")
-        while (dist > 0):
-            self.tello.move_forward(min(dist, 500))
-            self.node.get_logger().info(f"Sent move: {dist}")
-            dist = dist - 500
-        yaw, pitch, roll = quaternion_to_euler([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
-        self.rotate(yaw - rotation, False)
-        """
+
+        x_speed = 30
+        y_speed = 30
+
+        if -msg.position.y < 0:
+            y_speed *= -1
+
+        if msg.position.x < 0:
+            x_speed *= -1
+        
+
+
+        # while (dist > 0):
+        #     self.tello.send_rc_control()
+        #     self.tello.move_forward(min(dist, 500))
+        #     self.node.get_logger().info(f"Sent move: {dist}")
+        #     dist = dist - 500
+        # yaw, pitch, roll = quaternion_to_euler([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
+        # self.prec_rotate(-math.degrees(rotation))
+
+    def cb_odom(self, msg: Odometry):
+        self.pose[0] = msg.pose.pose.position.x
+        self.pose[1] = msg.pose.pose.position.y
+        self.pose[2] = msg.pose.pose.position.z
 
 # Convert a rotation from euler to quaternion.
 
